@@ -85,12 +85,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     stopSync.current?.(); stopSync.current = null;
-    await closeSession();
-    document.getElementById('user-theme')?.remove();
+    // Unmount the signed-in screens first so nothing touches the database while it closes.
+    setPhase('auth');
     setAccount(null);
     setRecoveryCode(null);
+    await new Promise((r) => setTimeout(r, 80));
+    document.getElementById('user-theme')?.remove();
+    await closeSession();
     await refreshAccounts();
-    setPhase('auth');
   }, [refreshAccounts]);
 
   // Lock after the app has been in the background for a while.

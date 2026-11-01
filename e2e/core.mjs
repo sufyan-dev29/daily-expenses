@@ -1,7 +1,7 @@
 import { launch, log, sleep, sh } from './cdp.mjs';
 
 let failures = 0;
-const step = async (name, fn) => { try { await fn(); log('PASS', name); } catch (e) { failures++; log('FAIL', name, '\n', e.message); } };
+const step = async (name, fn) => { try { await fn(); log('PASS', name); } catch (e) { failures++; log('FAIL', name, '\n', e.message); if (p?.errors?.length) log('JS errors:', p.errors.slice(0, 5).join(' | ').slice(0, 1500)); } };
 
 let p = await launch();
 let code = '';
