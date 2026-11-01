@@ -1,4 +1,6 @@
 name: android
+permissions:
+  contents: write
 on:
   push:
   workflow_dispatch:
@@ -67,3 +69,19 @@ jobs:
           name: e2e-shot-${{ matrix.api }}
           path: e2e/final.png
           if-no-files-found: ignore
+  release:
+    needs: apk
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: debug-apk, path: apk }
+      - name: Publish test build to Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp apk/app-debug.apk DailyExpenses-test.apk
+          gh release delete test-build --cleanup-tag --yes -R "$GITHUB_REPOSITORY" || true
+          gh release create test-build DailyExpenses-test.apk -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "Test build ($(date -u +%Y-%m-%d\ %H:%M) UTC)" \
+            --notes "Unsigned test build of Daily Expenses from commit ${GITHUB_SHA::7}. Not the final signed release."
