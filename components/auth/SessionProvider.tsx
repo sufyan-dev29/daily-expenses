@@ -85,14 +85,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     stopSync.current?.(); stopSync.current = null;
-    // Unmount the signed-in screens first so nothing touches the database while it closes.
+    // Load the account list first so the sign-in screen opens on "Sign in", not "Create account".
+    const list = authRef.current ? await authRef.current.listAccounts() : [];
+    // Unmount the signed-in screens before closing the database so nothing touches it while it closes.
+    setAccounts(list);
     setPhase('auth');
     setAccount(null);
     setRecoveryCode(null);
     await new Promise((r) => setTimeout(r, 80));
     document.getElementById('user-theme')?.remove();
     await closeSession();
-    await refreshAccounts();
   }, [refreshAccounts]);
 
   // Lock after the app has been in the background for a while.
