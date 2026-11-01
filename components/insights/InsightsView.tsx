@@ -115,14 +115,14 @@ export function InsightsView() {
     let alive = true;
     (async () => {
       setErr('');
-      const supabase = localDb();
-      const cur = await supabase.rpc('insights', rpcArgs(f, f.from, f.to, settings.week_start));
+      const db = localDb();
+      const cur = await db.rpc('insights', rpcArgs(f, f.from, f.to, settings.week_start));
       if (!alive) return;
       if (cur.error) { setErr(cur.error.message); setData(EMPTY); return; }
       setData(cur.data as InsightsData);
       if (f.cmp === '1' && f.preset !== 'all') {
         const p = previousRange(f.from, f.to);
-        const r = await supabase.rpc('insights', rpcArgs(f, p.from, p.to, settings.week_start));
+        const r = await db.rpc('insights', rpcArgs(f, p.from, p.to, settings.week_start));
         if (alive) setPrev(r.error ? null : (r.data as InsightsData));
       } else setPrev(null);
     })();
