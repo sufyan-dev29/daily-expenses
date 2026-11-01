@@ -2,14 +2,14 @@
 import { useState } from 'react';
 import { Field, Icon, IconButton, Section, Segmented, Sheet, Button, useSnackbar } from '@/components/ui';
 import { useApp } from '@/components/AppProvider';
-import { supabaseBrowser } from '@/lib/supabase/browser';
+import { localDb } from '@/lib/local/client';
 import type { Template } from '@/lib/types';
 
 export function TemplatesSection() {
   const { templates, refreshTemplates, money } = useApp();
   const snack = useSnackbar();
   const [edit, setEdit] = useState<Template | null>(null);
-  const sb = supabaseBrowser();
+  const sb = localDb();
 
   const move = async (t: Template, dir: -1 | 1) => {
     const same = templates.filter((x) => x.kind === t.kind);

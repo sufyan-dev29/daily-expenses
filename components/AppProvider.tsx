@@ -1,9 +1,9 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Option, OptionKind, Settings, Template } from '@/lib/types';
-import { supabaseBrowser } from '@/lib/supabase/browser';
+import { localDb } from '@/lib/local/client';
 import { formatMoney, relativeDayLabel, todayInTz } from '@/lib/format';
-import { flushQueue } from '@/lib/offline';
+import { themeCss } from '@/lib/theme';
 import { SnackbarProvider } from '@/components/ui';
 
 interface Ctx {
@@ -11,7 +11,6 @@ interface Ctx {
   options: Option[];
   templates: Template[];
   username: string;
-  email: string;
   setSettings: (patch: Partial<Settings>) => Promise<string | null>;
   refreshOptions: () => Promise<void>;
   refreshTemplates: () => Promise<void>;
@@ -54,15 +53,10 @@ function applyTheme(mode: Settings['theme_mode'], animate = false) {
   syncThemeColorMeta();
 }
 
-/**
- * AJAX re-theme: asks the server for the palette's CSS variables and swaps them into the page.
- * No reload, no flash. Resolves false if the request failed (the old colours stay).
- */
+/** Re-themes instantly: builds the palette's CSS variables on the phone and swaps them into the page. */
 export async function applyPalette(palette: string): Promise<boolean> {
   try {
-    const res = await fetch(`/api/theme/css?palette=${encodeURIComponent(palette)}`, { credentials: 'same-origin' });
-    if (!res.ok) return false;
-    const { css } = (await res.json()) as { css: string };
+    const css = themeCss(palette);
     let el = document.getElementById('user-theme') as HTMLStyleElement | null;
     if (!el) {
       el = document.createElement('style');
@@ -82,12 +76,10 @@ export function AppProvider({
   children,
   initial,
   username,
-  email,
 }: {
   children: ReactNode;
   initial: { settings: Settings; options: Option[]; templates: Template[] };
   username: string;
-  email: string;
 }) {
   const [settings, setSettingsState] = useState(initial.settings);
   const settingsRef = useRef(settings);
@@ -105,31 +97,16 @@ export function AppProvider({
     return () => mq.removeEventListener('change', f);
   }, [settings.theme_mode]);
 
-  // service worker + offline queue
-  useEffect(() => {
-    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
-    }
-    const run = () => flushQueue();
-    run();
-    window.addEventListener('online', run);
-    const iv = setInterval(run, 30_000);
-    return () => {
-      window.removeEventListener('online', run);
-      clearInterval(iv);
-    };
-  }, []);
-
   const refreshOptions = useCallback(async () => {
-    const { data } = await supabaseBrowser().from('options').select('*').order('sort_order').order('created_at');
+    const { data } = await localDb().from('options').select('*').order('sort_order').order('created_at');
     if (data) setOptions(data as Option[]);
   }, []);
   const refreshTemplates = useCallback(async () => {
-    const { data } = await supabaseBrowser().from('templates').select('*').order('sort_order').order('created_at');
+    const { data } = await localDb().from('templates').select('*').order('sort_order').order('created_at');
     if (data) setTemplates(data as Template[]);
   }, []);
   const refreshSettings = useCallback(async () => {
-    const { data } = await supabaseBrowser().from('user_settings').select('*').maybeSingle();
+    const { data } = await localDb().from('user_settings').select('*').maybeSingle();
     if (data) setSettingsState(data as Settings);
   }, []);
 
@@ -139,12 +116,12 @@ export function AppProvider({
     // new palette: re-theme right now over AJAX (no page reload), save in the background
     if (patch.accent_hex) await applyPalette(patch.accent_hex);
     const { sheet: _ignored, ...body } = patch;
-    const res = await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    if (!res.ok) {
+    const { error } = await localDb().from('user_settings').update(body);
+    if (error) {
       // roll back what we changed optimistically
       setSettingsState((s) => ({ ...s, ...Object.fromEntries(Object.keys(patch).map((k) => [k, before[k as keyof Settings]])) }));
       if (patch.accent_hex) applyPalette(before.accent_hex);
-      return ((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'Could not save';
+      return error.message || 'Could not save';
     }
     return null;
   }, []);
@@ -156,7 +133,6 @@ export function AppProvider({
       options,
       templates,
       username,
-      email,
       setSettings,
       refreshOptions,
       refreshTemplates,
@@ -168,7 +144,7 @@ export function AppProvider({
       today: () => todayInTz(settings.timezone),
       dayLabel: (iso) => relativeDayLabel(iso, settings.timezone, settings.date_format),
     };
-  }, [settings, options, templates, username, email, setSettings, refreshOptions, refreshTemplates, refreshSettings]);
+  }, [settings, options, templates, username, setSettings, refreshOptions, refreshTemplates, refreshSettings]);
 
   return (
     <AppCtx.Provider value={value}>

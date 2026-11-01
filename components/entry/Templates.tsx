@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { Button, Chip, Field, Icon, Segmented, Sheet, Switch, cx, useSnackbar } from '@/components/ui';
 import { useApp } from '@/components/AppProvider';
-import { supabaseBrowser } from '@/lib/supabase/browser';
+import { localDb } from '@/lib/local/client';
 import { newId, parseAmount } from '@/lib/format';
 import { saveTx } from '@/lib/tx';
 import type { Kind, Template, Transaction } from '@/lib/types';
@@ -57,12 +57,12 @@ export function TemplatesStrip({
   const up = () => clearTimeout(pressTimer.current);
 
   const toggleBehavior = async (t: Template) => {
-    await supabaseBrowser().from('templates').update({ behavior: t.behavior === 'fill' ? 'instant' : 'fill' }).eq('id', t.id);
+    await localDb().from('templates').update({ behavior: t.behavior === 'fill' ? 'instant' : 'fill' }).eq('id', t.id);
     await refreshTemplates();
     setManage(null);
   };
   const remove = async (t: Template) => {
-    await supabaseBrowser().from('templates').delete().eq('id', t.id);
+    await localDb().from('templates').delete().eq('id', t.id);
     await refreshTemplates();
     setManage(null);
   };
@@ -203,7 +203,7 @@ export function SaveTemplateSheet({
 
   const save = async () => {
     const payload = { ...defaults, amount: withAmount ? defaults.amount ?? null : null };
-    const { error } = await supabaseBrowser().from('templates').insert({
+    const { error } = await localDb().from('templates').insert({
       kind,
       name: name.trim() || defaults.name || 'Template',
       behavior: behavior === 'instant' && !(payload.amount && payload.amount > 0) ? 'fill' : behavior,

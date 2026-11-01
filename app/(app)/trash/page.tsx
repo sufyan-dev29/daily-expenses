@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button, Icon, Sheet, Skeleton, cx, useSnackbar } from '@/components/ui';
 import { useApp } from '@/components/AppProvider';
 import { OptionAvatar } from '@/components/entry/parts';
-import { supabaseBrowser } from '@/lib/supabase/browser';
+import { localDb } from '@/lib/local/client';
 import { deleteForever, restoreTx, TX_COLUMNS } from '@/lib/tx';
 import type { Transaction } from '@/lib/types';
 
@@ -15,7 +15,7 @@ export default function TrashPage() {
   const [confirm, setConfirm] = useState<Transaction | 'all' | null>(null);
 
   const load = useCallback(async () => {
-    const { data } = await supabaseBrowser().from('transactions').select(TX_COLUMNS).not('deleted_at', 'is', null).order('deleted_at', { ascending: false }).limit(500);
+    const { data } = await localDb().from('transactions').select(TX_COLUMNS).not('deleted_at', 'is', null).order('deleted_at', { ascending: false }).limit(500);
     setItems((data ?? []) as Transaction[]);
   }, []);
   useEffect(() => { load(); }, [load]);

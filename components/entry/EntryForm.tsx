@@ -4,7 +4,7 @@ import { Button, Icon, Segmented, cx, useSnackbar } from '@/components/ui';
 import { useApp } from '@/components/AppProvider';
 import { AmountPad, DateSheet, SelectSheet, SuccessButton, Token } from '@/components/entry/parts';
 import { SaveTemplateSheet, TemplatesStrip } from '@/components/entry/Templates';
-import { supabaseBrowser } from '@/lib/supabase/browser';
+import { localDb } from '@/lib/local/client';
 import { currencySymbol, newId, parseAmount } from '@/lib/format';
 import { saveTx, TX_COLUMNS } from '@/lib/tx';
 import { iconForOption } from '@/lib/seed';
@@ -95,7 +95,7 @@ export function EntryForm({
   useEffect(() => {
     let alive = true;
     (async () => {
-      const { data } = await supabaseBrowser()
+      const { data } = await localDb()
         .from('transactions')
         .select(TX_COLUMNS)
         .eq('kind', kind)
@@ -185,7 +185,7 @@ export function EntryForm({
 
   const addOption = (k: OptionKind) => async (name: string, look?: { icon: string; color: string | null }): Promise<string | null> => {
     const sort = optionsOf(k, true).length;
-    const { data, error } = await supabaseBrowser()
+    const { data, error } = await localDb()
       .from('options')
       .insert({ kind: k, name, sort_order: sort, icon: look?.icon ?? iconForOption(k, name, null), color: look?.color ?? null })
       .select('id')

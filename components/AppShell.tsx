@@ -31,7 +31,7 @@ export function usePending() {
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const pending = usePending();
-  const { username, email } = useApp();
+  const { username } = useApp();
   const [online, setOnline] = useState(true);
   useEffect(() => {
     const f = () => setOnline(navigator.onLine);
@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   const active = (href: string) => path === href || (href === '/expense' && path === '/trash') || path.startsWith(href + '/');
-  const who = username || email.split('@')[0] || 'You';
+  const who = username || 'You';
 
   return (
     <div className="min-h-dvh">
@@ -93,17 +93,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-tertiary-container t-title-md uppercase text-on-tertiary-container">{who.slice(0, 1)}</span>
           <span className="min-w-0">
             <span className="t-label-lg block truncate">{who}</span>
-            <span className="t-label-md block truncate font-normal text-on-surface-variant">{email}</span>
+            <span className="t-label-md block truncate font-normal text-on-surface-variant">On this phone</span>
           </span>
         </div>
       </nav>
 
       {/* ------------------------------------------------------------ content */}
       <main className="min-w-0 pb-[calc(var(--nav-h)+env(safe-area-inset-bottom))] expanded:pb-0 expanded:pl-24 large:pl-72">
-        {(!online || pending > 0) && (
+        {pending > 0 && (
           <div className="t-label-md mx-4 mt-3 flex items-center justify-center gap-2 rounded-full bg-tertiary-container py-2 text-on-tertiary-container expanded:mx-6" role="status">
             <Icon name={online ? 'sync' : 'cloud_off'} size={16} className={online ? 'spin' : ''} />
-            {online ? `Syncing ${pending} pending ${pending === 1 ? 'entry' : 'entries'}` : `Offline${pending ? ` · ${pending} pending` : ''}`}
+            {online ? `Syncing ${pending} ${pending === 1 ? 'change' : 'changes'} to Google Sheet` : `Waiting for internet · ${pending} to sync`}
           </div>
         )}
         {children}

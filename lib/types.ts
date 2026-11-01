@@ -68,6 +68,7 @@ export interface SheetConfig {
 }
 
 export interface Settings {
+  mode: 'offline' | 'online';
   theme_mode: 'system' | 'light' | 'dark';
   accent_hex: string;
   currency: string;
@@ -81,6 +82,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  mode: 'offline',
   theme_mode: 'system',
   accent_hex: '#006A6A',
   currency: 'PKR',

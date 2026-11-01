@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button, Field, Icon, IconButton, Section, Sheet, cx, useSnackbar } from '@/components/ui';
 import { useApp } from '@/components/AppProvider';
-import { supabaseBrowser } from '@/lib/supabase/browser';
+import { localDb } from '@/lib/local/client';
 import { ICON_CHOICES, iconForOption } from '@/lib/seed';
 import { OptionAvatar, optionLook } from '@/components/entry/parts';
 import type { Option, OptionKind } from '@/lib/types';
@@ -32,7 +32,7 @@ function OneList({ kind, title, icon, description }: { kind: OptionKind; title: 
   const all = optionsOf(kind, true).sort((a, b) => a.sort_order - b.sort_order);
   const live = all.filter((o) => !o.archived_at);
   const archived = all.filter((o) => o.archived_at);
-  const sb = supabaseBrowser();
+  const sb = localDb();
   const hasIcon = true; // every list can have its own icon and colour
 
   const add = async () => {

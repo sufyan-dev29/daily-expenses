@@ -3,7 +3,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Chip, Field, Icon, Segmented, Sheet, Skeleton, cx, useDebounced } from '@/components/ui';
 import { useApp } from '@/components/AppProvider';
-import { supabaseBrowser } from '@/lib/supabase/browser';
+import { localDb } from '@/lib/local/client';
+import { exportRange } from '@/lib/local/files';
 import { PRESET_LABELS, presetRange, previousRange, type Gran, type Preset } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
 import { TX_COLUMNS } from '@/lib/tx';
@@ -114,7 +115,7 @@ export function InsightsView() {
     let alive = true;
     (async () => {
       setErr('');
-      const supabase = supabaseBrowser();
+      const supabase = localDb();
       const cur = await supabase.rpc('insights', rpcArgs(f, f.from, f.to, settings.week_start));
       if (!alive) return;
       if (cur.error) { setErr(cur.error.message); setData(EMPTY); return; }
@@ -164,9 +165,9 @@ export function InsightsView() {
     <div className="mx-auto w-full max-w-[1280px] px-4 pb-12 medium:px-6 expanded:px-8">
       <header className="flex h-20 items-center gap-2">
         <h1 className="t-headline flex-1">Insights</h1>
-        <a href={`/api/export?from=${f.from}&to=${f.to}${f.kind ? `&kind=${f.kind}` : ''}`} className="state t-label-lg state press flex h-10 items-center gap-1 rounded-full bg-secondary-container px-4 text-on-secondary-container">
+        <button type="button" onClick={() => void exportRange(f.from, f.to, f.kind || undefined)} className="state t-label-lg state press flex h-10 items-center gap-1 rounded-full bg-secondary-container px-4 text-on-secondary-container">
           <Icon name="download" size={18} /> CSV
-        </a>
+        </button>
       </header>
 
       {/* filter bar */}
@@ -331,7 +332,7 @@ function EntriesTable({ f }: { f: Filters }) {
   useEffect(() => {
     let alive = true;
     (async () => {
-      let q = supabaseBrowser().from('transactions').select(TX_COLUMNS, { count: 'exact' }).is('deleted_at', null).gte('occurred_on', f.from).lte('occurred_on', f.to);
+      let q = localDb().from('transactions').select(TX_COLUMNS, { count: 'exact' }).is('deleted_at', null).gte('occurred_on', f.from).lte('occurred_on', f.to);
       if (f.kind) q = q.eq('kind', f.kind);
       if (f.category) q = q.eq('category_id', f.category);
       if (f.bank) q = q.eq('bank_id', f.bank);
@@ -358,13 +359,12 @@ function EntriesTable({ f }: { f: Filters }) {
     </th>
   );
   const pages = Math.max(1, Math.ceil(count / SIZE));
-  const csv = `/api/export?from=${f.from}&to=${f.to}${f.kind ? `&kind=${f.kind}` : ''}`;
 
   return (
     <section className="mt-4 rounded-[28px] bg-surface-container-low p-4" aria-label="Entries">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="t-title-md">Entries <span className="t-body-md font-normal text-on-surface-variant">({count})</span></h3>
-        <a href={csv} className="state t-label-lg flex h-10 items-center gap-1 rounded-full px-3 text-primary"><Icon name="download" size={18} />Export CSV</a>
+        <button type="button" onClick={() => void exportRange(f.from, f.to, f.kind || undefined)} className="state t-label-lg flex h-10 items-center gap-1 rounded-full px-3 text-primary"><Icon name="download" size={18} />Export CSV</button>
       </div>
       <div className="overflow-x-auto">
         <table className="t-body-md w-full min-w-[640px]">

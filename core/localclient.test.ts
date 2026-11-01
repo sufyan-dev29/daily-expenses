@@ -128,3 +128,24 @@ test('rpc insights returns the shape the Insights screen reads', async () => {
   assert.ok(bad.error);
   assert.ok((await c.rpc('drop_everything', {})).error);
 });
+
+import { purgeTrash } from './maintenance.ts';
+test('trash older than the retention period is purged, newer is kept', async () => {
+  const { c, db } = await setup();
+  await c.from('user_settings').update({ trash_retention_days: 7 });
+  const day = 86_400_000;
+  await db.run("INSERT INTO transactions (id, kind, name, amount_minor, occurred_on, deleted_at) VALUES ('old','expense','Old',100,'2026-01-01',?)", [new Date(Date.now() - 8 * day).toISOString()]);
+  await db.run("INSERT INTO transactions (id, kind, name, amount_minor, occurred_on, deleted_at) VALUES ('new','expense','New',100,'2026-01-01',?)", [new Date(Date.now() - 6 * day).toISOString()]);
+  await db.run("INSERT INTO transactions (id, kind, name, amount_minor, occurred_on) VALUES ('live','expense','Live',100,'2026-01-01')");
+  assert.equal(await purgeTrash(db), 1);
+  assert.deepEqual((await db.all<{ id: string }>('SELECT id FROM transactions ORDER BY id')).map((r) => r.id), ['live', 'new']);
+});
+
+import { seedStarterOptions } from './seeding.ts';
+test('new accounts get the starter lists once', async () => {
+  const { db } = await setup();
+  assert.equal(await seedStarterOptions(db), 8 + 4 + 8 + 3);
+  assert.equal(await seedStarterOptions(db), 0);
+  const cats = await db.all<{ name: string; icon: string | null }>("SELECT name, icon FROM options WHERE kind='category' ORDER BY sort_order");
+  assert.equal(cats[0].name, 'Education'); assert.equal(cats[0].icon, 'school');
+});

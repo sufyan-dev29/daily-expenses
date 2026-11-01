@@ -7,7 +7,7 @@ import { useApp } from '@/components/AppProvider';
 import { EntryForm } from '@/components/entry/EntryForm';
 import { HistoryList } from '@/components/entry/History';
 import { usePending } from '@/components/AppShell';
-import { supabaseBrowser } from '@/lib/supabase/browser';
+import { localDb } from '@/lib/local/client';
 import { restoreTx, trashTx, TX_COLUMNS } from '@/lib/tx';
 import { pendingIds } from '@/lib/offline';
 import type { Kind, Transaction } from '@/lib/types';
@@ -72,7 +72,7 @@ export function EntryScreen({ kind }: { kind: Kind }) {
   const load = useCallback(
     async (reset: boolean) => {
       if (reset) { page.current = 0; setLoading(true); }
-      let query = supabaseBrowser()
+      let query = localDb()
         .from('transactions')
         .select(TX_COLUMNS)
         .eq('kind', kind)

@@ -3,12 +3,24 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button, Icon, Spinner, cx, useIsDark, useSnackbar } from '@/components/ui';
 import { useApp } from '@/components/AppProvider';
 import { normalizePalette, parsePalette, type PalettePreview } from '@/lib/palette';
+import { SUGGESTED_SEEDS, VARIANTS, generatePalettes, previewOf } from '@/lib/theme';
 
+/** Palettes are generated on the phone. qs is the same query format the old server route used. */
 async function load(qs: string): Promise<PalettePreview[] | null> {
   try {
-    const res = await fetch(`/api/theme/palettes?${qs}`, { credentials: 'same-origin', cache: 'no-store' });
-    if (!res.ok) return null;
-    return ((await res.json()) as { palettes: PalettePreview[] }).palettes;
+    const sp = new URLSearchParams(qs);
+    const set = sp.get('set') ?? 'suggested';
+    let ids: string[];
+    if (set === 'generate') {
+      const n = Math.min(Math.max(Number(sp.get('n')) || 8, 1), 16);
+      ids = generatePalettes(n, (sp.get('avoid') ?? '').split(',').filter(Boolean));
+    } else if (set === 'styles') {
+      const seed = parsePalette(sp.get('seed')).seed;
+      ids = VARIANTS.map((v) => normalizePalette(v.id === 'tonal' ? seed : `${seed}:${v.id}`));
+    } else {
+      ids = SUGGESTED_SEEDS.map(normalizePalette);
+    }
+    return ids.map(previewOf);
   } catch {
     return null;
   }
@@ -93,7 +105,7 @@ export function PalettePicker() {
     const r = await load(`set=generate&n=8&avoid=${encodeURIComponent(avoid)}`);
     setBusy(false);
     if (r) setGenerated(r);
-    else snack({ message: 'Could not generate palettes. Check your connection.' });
+    else snack({ message: 'Could not generate palettes.' });
   };
 
   const main = generated ?? suggested;
