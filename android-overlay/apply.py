@@ -13,16 +13,8 @@ s=re.sub(r'versionCode \d+',f'versionCode {code}',s); s=re.sub(r'versionName "[^
 if 'androidx.biometric' not in s:
     s=s.replace('dependencies {','dependencies {\n    implementation "androidx.biometric:biometric:1.1.0"\n    implementation "androidx.fragment:fragment:1.6.2"',1)
 s=re.sub(r'minifyEnabled false','minifyEnabled true\n            shrinkResources true',s)
-if 'signingConfigs' not in s and os.environ.get('RELEASE_SIGNING')=='1':
-    s=s.replace('buildTypes {','''signingConfigs {
-        release {
-            storeFile file(System.getenv("KEYSTORE_PATH"))
-            storePassword System.getenv("KEYSTORE_PASSWORD")
-            keyAlias System.getenv("KEY_ALIAS")
-            keyPassword System.getenv("KEY_PASSWORD")
-        }
-    }
-    buildTypes {''',1)
-    s=s.replace('release {','release {\n            signingConfig signingConfigs.release',1) if 'signingConfig signingConfigs.release' not in s else s
+if os.environ.get('RELEASE_SIGNING')=='1' and 'signingConfigs' not in s:
+    s=s.replace('buildTypes {','signingConfigs {\n        release {\n            storeFile file(System.getenv("KEYSTORE_PATH"))\n            storePassword System.getenv("KEYSTORE_PASSWORD")\n            keyAlias System.getenv("KEY_ALIAS")\n            keyPassword System.getenv("KEY_PASSWORD")\n        }\n    }\n    buildTypes {',1)
+    s=re.sub(r'(buildTypes\s*\{\s*release\s*\{)',r'\1\n            signingConfig signingConfigs.release',s,count=1)
 open(g,'w').write(s)
-print(s)
+print('patched app/build.gradle')

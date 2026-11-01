@@ -4,7 +4,9 @@ Daily Expenses is a standalone Android app (package `com.dailyexpenses.app`, And
 
 ## 1. Install a build
 
-**Test builds** appear under **Releases → "Test build"** on GitHub after every successful build of `main`. The file is `DailyExpenses-test.apk`. It is unsigned for release and has debugging switched on, so use it only for testing.
+**Signed release (recommended):** Releases → the newest `v1.0.x`, file `DailyExpenses.apk` (see section 6 to create it).
+
+**Test build:** Releases → "Test build", file `DailyExpenses-test.apk`. It uses a debug key and has debugging switched on, so use it only for testing; Google may flag it.
 
 1. Download the APK on the phone (or copy it over from a computer).
 2. Open it and allow "Install unknown apps" for your browser or file manager when asked.
@@ -46,32 +48,38 @@ Android may show a Play Protect warning for apps installed outside the Play Stor
 - The only network use is the optional Google Sheet sync.
 - No software can be guaranteed to have zero vulnerabilities. The project runs automated tests on every build, but it has not had an independent security audit.
 
-## 5. Building it yourself
+## 5. Building
 
-Builds run on GitHub Actions (`.github/workflows/android.yml`):
+Nothing builds automatically. Go to **Actions → android → Run workflow** on GitHub.
 
-1. **web** – runs the logic tests, type-checks, and builds the static web app.
-2. **apk** – wraps it with Capacitor, applies `android-overlay/` (biometric plugin, hardened manifest, edge-to-edge handling) and builds the APK.
-3. **emulator** – installs the APK on an Android 14 emulator and runs the end-to-end tests in `e2e/`.
-4. **release** – publishes the APK to Releases as "Test build".
+- **Run with "sign" off:** runs the logic tests, type-check and web build, then builds a test APK and publishes it under **Releases → "Test build"**.
+- **Run with "sign" on:** also builds the signed release APK and publishes it as a new release (`v1.0.<run number>`). It needs the signing secrets from section 6, and fails with a clear message if they are missing.
 
-Local logic tests (Node 22+, no install needed):
+Logic tests only (Node 22+, no install needed):
 
 ```
 node --experimental-strip-types --no-warnings --test core/*.test.ts
 ```
 
-To build locally you need Node 22, JDK 21 and the Android SDK, then: `npm install`, `npx next build`, `npx cap add android`, `python3 android-overlay/apply.py`, `npx cap sync android`, and `cd android && ./gradlew assembleDebug`.
+## 6. Signed release and Google Play Protect
 
-## 6. Signed release (planned)
+**Why Google flags the test build.** Play Protect warns about apps from unknown developers. The test APK is made worse by two things: it is signed with a throw-away debug key and it is marked debuggable. Use the signed release instead.
 
-1. On your own computer, make a release key (keep this file and its passwords safe; if you lose them you cannot update the app):
+**Steps (once, on your own computer).** The key never goes into the repo and I never see it.
+
+1. Make the key. Keep the file and both passwords somewhere safe; without them you can never update the app.
    `keytool -genkeypair -v -keystore release.keystore -alias dailyexpenses -keyalg RSA -keysize 4096 -validity 10000`
-2. Convert it for GitHub: `base64 -w0 release.keystore` (macOS: `base64 -i release.keystore`).
-3. In the repo go to Settings → Secrets and variables → Actions and add: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`.
-4. The release job (not added yet) will then build and sign the final APK. Nobody else ever sees the key.
+2. Encode it: `base64 -w0 release.keystore` (macOS: `base64 -i release.keystore`) and copy the output.
+3. In the repo: Settings → Secrets and variables → Actions → New repository secret. Add:
+   - `KEYSTORE_BASE64` (the encoded text)
+   - `KEYSTORE_PASSWORD`
+   - `KEY_ALIAS` (`dailyexpenses` if you used the command above)
+   - `KEY_PASSWORD`
+4. Run **android** with "sign" on and install `DailyExpenses.apk` from the new release.
+
+**What to expect.** A properly signed, non-debuggable release with minimal permissions gets far fewer warnings and should not be called "harmful". Android can still show an "unrecognised app / unknown developer" notice for any app installed outside the Play Store, and signing cannot remove that. On that screen choose **More details → Install anyway**. If you want no warning at all, the app would need to be published through Google Play.
 
 ## 7. Known limits
 
 - Very old phones (Android 6–7) may ship an outdated system WebView; the app needs a reasonably recent one. Android 8 and newer should be fine once WebView is updated.
-- Test coverage so far is Android 14 on an emulator plus the logic tests; older versions and real devices are still to be checked.
+- Testing so far: the logic tests, plus one Android 14 emulator run. Everything else is tested by hand on real phones.
