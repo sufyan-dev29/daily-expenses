@@ -8,6 +8,7 @@ import { startSyncTriggers } from '@/lib/local/sync';
 import { consumeAutoLockHold, onAppActive, store } from '@/lib/local/platform';
 import { biometricRemove, biometricUnlock, BiometricError } from '@/lib/local/biometric';
 import { applyMode } from '@/lib/local/account';
+import { applyPalette } from '@/components/AppProvider';
 
 export type Mode = 'offline' | 'online';
 type Phase = 'booting' | 'failed' | 'auth' | 'app';
@@ -95,9 +96,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setAccount(null);
     setRecoveryCode(null);
     await new Promise((r) => setTimeout(r, 80));
-    document.getElementById('user-theme')?.remove();
     await closeSession();
   }, [refreshAccounts]);
+
+  // the sign-in screen wears the same colours as the app (the phone's colours unless the person picked their own)
+  useEffect(() => {
+    if (phase === 'auth') void applyPalette(store.get('et-accent') ?? 'system');
+  }, [phase]);
 
   // Lock after the app has been in the background for a while.
   useEffect(() => {

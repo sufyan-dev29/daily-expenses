@@ -5,7 +5,7 @@ import { localDb } from '@/lib/local/client';
 import { formatMoney, relativeDayLabel, todayInTz } from '@/lib/format';
 import { themeCss } from '@/lib/theme';
 import { SYSTEM_ACCENT, refreshSystemSeed, resolveAccent } from '@/lib/local/systemcolor';
-import { onAppActive } from '@/lib/local/platform';
+import { onAppActive, store } from '@/lib/local/platform';
 import { SnackbarProvider } from '@/components/ui';
 
 interface Ctx {
@@ -59,6 +59,7 @@ function applyTheme(mode: Settings['theme_mode'], animate = false) {
 export async function applyPalette(palette: string): Promise<boolean> {
   try {
     const css = themeCss(await resolveAccent(palette));
+    store.set('et-accent', palette); // so the sign-in screen can use the same colours
     let el = document.getElementById('user-theme') as HTMLStyleElement | null;
     if (!el) {
       el = document.createElement('style');
