@@ -62,7 +62,11 @@ function Login({ go, notice }: { go: (v: View) => void; notice: string }) {
   const s = useSession();
   const [username, setUsername] = useState(s.lastUsername);
   const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<Mode>(s.lastMode);
+  const [mode, setModeState] = useState<Mode>(s.modeFor(s.lastUsername));
+  const touched = useRef(false);
+  const setMode = (m: Mode) => { touched.current = true; setModeState(m); };
+  // each account remembers its own mode; follow the typed username until the person picks one themselves
+  useEffect(() => { if (!touched.current) setModeState(s.modeFor(username)); }, [username, s.accounts]); // eslint-disable-line react-hooks/exhaustive-deps
   const [error, setError] = useState(notice);
   const [busy, setBusy] = useState(false);
   const [bio, setBio] = useState(false);
@@ -75,12 +79,12 @@ function Login({ go, notice }: { go: (v: View) => void; notice: string }) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true); setError('');
-    const err = await s.signIn(username, password, mode);
+    const err = await s.signIn(username, password, touched.current ? mode : null);
     if (err) { setError(err); setBusy(false); setPassword(''); }
   };
   const viaBio = async (auto = false) => {
     setBusy(true); setError('');
-    const err = await s.signInBiometric(mode);
+    const err = await s.signInBiometric(touched.current ? mode : null);
     if (err !== null) { setError(auto && err === 'Cancelled.' ? '' : err); setBusy(false); }
   };
   // when fingerprint / face sign-in is on, ask for it straight away

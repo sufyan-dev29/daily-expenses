@@ -19,12 +19,12 @@ interface Ctx {
   accounts: Account[];
   account: Account | null;
   lastUsername: string;
-  lastMode: Mode;
+  modeFor: (username: string) => Mode;
   /** Shown once after sign-up / reset / restore; the app waits until the user confirms they saved it. */
   recoveryCode: string | null;
   confirmRecoveryCode: () => void;
-  signIn: (username: string, password: string, mode: Mode) => Promise<string | null>;
-  signInBiometric: (mode: Mode) => Promise<string | null>;
+  signIn: (username: string, password: string, mode: Mode | null) => Promise<string | null>;
+  signInBiometric: (mode: Mode | null) => Promise<string | null>;
   createAccount: (username: string, password: string, mode: Mode) => Promise<string | null>;
   resetWithRecovery: (username: string, code: string, newPassword: string) => Promise<string | null>;
   restoreNewAccount: (file: Uint8Array, backupPassword: string, username: string, password: string) => Promise<string | null>;
@@ -75,8 +75,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await openAccountSession(acct);
     if (seed) await seedStarterOptions(getDb());
     if (mode) await applyMode(mode);
+    // whatever the account is set to now is what the sign-in screen should offer next time
+    const now = (await getDb().all<{ mode: string }>('SELECT mode FROM settings WHERE id = 1'))[0]?.mode;
+    store.set(`et-mode-${acct.id}`, now === 'online' ? 'online' : 'offline');
     store.set('et-last-user', acct.username);
-    if (mode) store.set('et-mode', mode);
     setAccount(acct);
     stopSync.current?.();
     stopSync.current = startSyncTriggers();
@@ -117,7 +119,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Ctx>(() => ({
     phase, bootError, auth, accounts, account,
     lastUsername: store.get('et-last-user') ?? accounts[accounts.length - 1]?.username ?? '',
-    lastMode: store.get('et-mode') === 'online' ? 'online' : 'offline',
+    modeFor: (username) => {
+      const a = accounts.find((x) => x.username === username.trim().toLowerCase());
+      return a && store.get(`et-mode-${a.id}`) === 'online' ? 'online' : 'offline';
+    },
     recoveryCode,
     confirmRecoveryCode: () => { const f = afterRecovery.current; afterRecovery.current = null; setRecoveryCode(null); f?.(); },
     autoLockSeconds: autoLock,
