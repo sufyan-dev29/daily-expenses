@@ -6,6 +6,7 @@ import { applyImport, planImport } from './csv.ts';
 import { BackupError, collectData, createBackup, openBackup, readHeader, restoreData, validateData } from './backup.ts';
 import { unzip, zip } from './zip.ts';
 import { fromUtf8, utf8 } from './bytes.ts';
+import { getSecret, GOOGLE_KEY, NEEDS_FULL_RESYNC, setSecret } from './secrets.ts';
 
 const FAST = { iterations: 100_000 };
 const KEY = JSON.stringify({ client_email: 'sa@p.iam.gserviceaccount.com', private_key: '-----BEGIN PRIVATE KEY-----\nSECRETSECRET\n-----END PRIVATE KEY-----\n' });
@@ -159,4 +160,20 @@ test('large account: 20k transactions round trip', async () => {
   const dst = await memoryDb(); await migrate(dst);
   assert.equal((await restoreData(dst, data, 'replace')).transactionsAdded, 20000);
   assert.equal((await dst.all<{ n: number }>('SELECT count(*) n FROM transactions'))[0].n, 20000);
+});
+
+test('service-account key is restored into the account, and a restored online account resyncs once', async () => {
+  const src = await seeded();
+  await setSecret(src, GOOGLE_KEY, KEY);
+  const file = await createBackup(await collectData(src, { username: 'u' }), 'correct horse', FAST);
+  const { data } = await openBackup(file, 'correct horse');
+  assert.equal(data.serviceAccountKey, KEY);
+  const dst = await memoryDb(); await migrate(dst);
+  await restoreData(dst, data, 'replace');
+  assert.equal(await getSecret(dst, GOOGLE_KEY), KEY);
+  assert.equal(await getSecret(dst, NEEDS_FULL_RESYNC), '1');
+  // a backup without a key clears any key on the target after a replace
+  const noKey = { ...data, serviceAccountKey: null };
+  await restoreData(dst, noKey, 'replace');
+  assert.equal(await getSecret(dst, GOOGLE_KEY), null);
 });

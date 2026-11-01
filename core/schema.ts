@@ -133,25 +133,79 @@ const MIGRATIONS: string[] = [
   END;
 --#
   `,
+  // 2: per-account secrets (service-account key lives inside the encrypted database) and a revision counter on the
+  //    sync queue, so a change made while a sync is running is never lost.
+  `
+  CREATE TABLE secrets (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  );
+--#
+  ALTER TABLE sync_outbox ADD COLUMN rev INTEGER NOT NULL DEFAULT 0;
+--#
+  DROP TRIGGER tx_outbox_insert;
+--#
+  DROP TRIGGER tx_outbox_update;
+--#
+  DROP TRIGGER tx_outbox_delete;
+--#
+  CREATE TRIGGER tx_outbox_insert AFTER INSERT ON transactions
+  WHEN (SELECT mode FROM settings WHERE id = 1) = 'online'
+   AND coalesce((SELECT json_extract(sheet, '$.spreadsheetId') FROM settings WHERE id = 1), '') <> ''
+  BEGIN
+    INSERT INTO sync_outbox (transaction_id, op) VALUES (new.id, 'upsert')
+    ON CONFLICT (transaction_id) DO UPDATE SET op = 'upsert', attempts = 0, last_error = NULL, rev = rev + 1,
+      next_attempt_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now');
+  END;
+--#
+  CREATE TRIGGER tx_outbox_update AFTER UPDATE ON transactions
+  WHEN (SELECT mode FROM settings WHERE id = 1) = 'online'
+   AND coalesce((SELECT json_extract(sheet, '$.spreadsheetId') FROM settings WHERE id = 1), '') <> ''
+   AND (old.kind IS NOT new.kind OR old.name IS NOT new.name OR old.amount_minor IS NOT new.amount_minor
+     OR old.occurred_on IS NOT new.occurred_on OR old.category_id IS NOT new.category_id
+     OR old.bank_id IS NOT new.bank_id OR old.payment_mode_id IS NOT new.payment_mode_id
+     OR old.income_source_id IS NOT new.income_source_id OR old.need_want IS NOT new.need_want
+     OR old.notes IS NOT new.notes OR old.deleted_at IS NOT new.deleted_at)
+  BEGIN
+    INSERT INTO sync_outbox (transaction_id, op) VALUES (new.id, 'upsert')
+    ON CONFLICT (transaction_id) DO UPDATE SET op = 'upsert', attempts = 0, last_error = NULL, rev = rev + 1,
+      next_attempt_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now');
+  END;
+--#
+  CREATE TRIGGER tx_outbox_delete AFTER DELETE ON transactions
+  WHEN (SELECT mode FROM settings WHERE id = 1) = 'online'
+   AND coalesce((SELECT json_extract(sheet, '$.spreadsheetId') FROM settings WHERE id = 1), '') <> ''
+  BEGIN
+    INSERT INTO sync_outbox (transaction_id, op) VALUES (old.id, 'delete')
+    ON CONFLICT (transaction_id) DO UPDATE SET op = 'delete', attempts = 0, last_error = NULL, rev = rev + 1,
+      next_attempt_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now');
+  END;
+--#
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
 /** Applies any migrations not yet applied. Safe to call on every app start. */
 export async function migrate(db: SqlDb): Promise<number> {
+  return applyMigrations(db, MIGRATIONS);
+}
+
+export async function applyMigrations(db: SqlDb, migrations: string[]): Promise<number> {
   await db.exec('PRAGMA foreign_keys = ON;');
   const row = await one<{ user_version: number }>(db, 'PRAGMA user_version');
   const current = row?.user_version ?? 0;
-  if (current > SCHEMA_VERSION) {
+  if (current > migrations.length) {
     throw new Error('This data was created by a newer version of the app. Update the app first.');
   }
-  for (let v = current; v < MIGRATIONS.length; v++) {
+  for (let v = current; v < migrations.length; v++) {
     // Statements run one at a time: some SQLite wrappers cannot split trigger bodies safely.
-    const statements = MIGRATIONS[v].split(/^--#$/m).map((x) => x.trim()).filter(Boolean);
+    const statements = migrations[v].split(/^--#$/m).map((x) => x.trim()).filter(Boolean);
     await db.transaction(async () => {
       for (const stmt of statements) await db.run(stmt);
     });
     await db.exec(`PRAGMA user_version = ${v + 1};`);
   }
-  return SCHEMA_VERSION;
+  return migrations.length;
 }

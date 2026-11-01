@@ -12,6 +12,7 @@ import { one } from './db.ts';
 import { SCHEMA_VERSION } from './schema.ts';
 import { fromBase64, fromUtf8, randomBytes, toBase64, utf8 } from './bytes.ts';
 import { unzip, zip, ZipError } from './zip.ts';
+import { deleteSecret, getSecret, GOOGLE_KEY, NEEDS_FULL_RESYNC, setSecret } from './secrets.ts';
 
 export const BACKUP_FORMAT = 'daily-expenses-backup';
 export const BACKUP_VERSION = 1;
@@ -55,7 +56,7 @@ interface Manifest extends BackupHeader { ciphertext: string }
 
 const SETTINGS_COLS = 'mode, theme_mode, accent_hex, currency, locale, date_format, week_start, timezone, remember_last, trash_retention_days, sheet';
 
-export async function collectData(db: SqlDb, account: { username: string }, serviceAccountKey: string | null): Promise<BackupData> {
+export async function collectData(db: SqlDb, account: { username: string }, serviceAccountKey?: string | null): Promise<BackupData> {
   const settings = await one<SettingsRow>(db, `SELECT ${SETTINGS_COLS} FROM settings WHERE id = 1`);
   if (!settings) throw new BackupError('Settings are missing.', 'invalid_data');
   return {
@@ -64,7 +65,7 @@ export async function collectData(db: SqlDb, account: { username: string }, serv
     options: await db.all<OptionRow>('SELECT id, kind, name, sort_order, color, icon, archived_at, created_at FROM options ORDER BY kind, sort_order, name'),
     transactions: await db.all<TxRow>('SELECT id, kind, name, amount_minor, occurred_on, category_id, bank_id, payment_mode_id, income_source_id, need_want, notes, deleted_at, created_at, updated_at FROM transactions ORDER BY created_at, id'),
     templates: await db.all<TemplateRow>('SELECT id, kind, name, behavior, payload, sort_order, created_at FROM templates ORDER BY kind, sort_order, name'),
-    serviceAccountKey,
+    serviceAccountKey: serviceAccountKey !== undefined ? serviceAccountKey : await getSecret(db, GOOGLE_KEY),
   };
 }
 
@@ -153,8 +154,8 @@ export function validateData(raw: unknown): BackupData {
   if (!username.trim()) bad('username');
   const s = r.settings;
   if (!isObj(s)) bad('settings');
-  const hex = str(s.accent_hex, 'accent', 9);
-  if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) bad('accent');
+  const hex = str(s.accent_hex, 'accent', 30);
+  if (!/^#[0-9A-Fa-f]{6}(:[a-z]{3,12})?$/.test(hex)) bad('accent');
   const remember = str(s.remember_last, 'remember_last', 500);
   try { if (!isObj(JSON.parse(remember))) bad('remember_last'); } catch { bad('remember_last'); }
   const sheet = nstr(s.sheet, 'sheet', 2000);
@@ -286,8 +287,13 @@ export async function restoreData(db: SqlDb, data: BackupData, mode: 'replace' |
       const s = data.settings;
       await db.run(`UPDATE settings SET mode=?, theme_mode=?, accent_hex=?, currency=?, locale=?, date_format=?, week_start=?, timezone=?, remember_last=?, trash_retention_days=?, sheet=?, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=1`,
         [s.mode, s.theme_mode, s.accent_hex, s.currency, s.locale, s.date_format, s.week_start, s.timezone, s.remember_last, s.trash_retention_days, s.sheet]);
+      if (data.serviceAccountKey) await setSecret(db, GOOGLE_KEY, data.serviceAccountKey); else await deleteSecret(db, GOOGLE_KEY);
+      // the restored sheet may differ from what is on Google now: rewrite it once, on the next sync
+      if (s.mode === 'online' && s.sheet) await setSecret(db, NEEDS_FULL_RESYNC, '1'); else await deleteSecret(db, NEEDS_FULL_RESYNC);
     } else if (before) {
       await db.run('UPDATE settings SET mode = ? WHERE id = 1', [before.mode]);
+      if (data.serviceAccountKey && !(await getSecret(db, GOOGLE_KEY))) await setSecret(db, GOOGLE_KEY, data.serviceAccountKey);
+      if (before.mode === 'online' && txs.length) await setSecret(db, NEEDS_FULL_RESYNC, '1');
     }
   });
   return res;
