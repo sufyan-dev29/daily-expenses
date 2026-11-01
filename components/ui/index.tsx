@@ -279,6 +279,9 @@ export function Sheet({
   footer?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  // callers pass a new onClose every render; keep the latest in a ref so typing in a field never re-runs the open effect
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const swipe = useSwipeDismiss(onClose);
   const bind = useCallback((el: HTMLDivElement | null) => { ref.current = el; swipe(el); }, [swipe]);
   useEffect(() => {
@@ -287,7 +290,7 @@ export function Sheet({
     // opening a picker must never raise the on-screen keyboard: drop focus from any text field underneath
     if (prev && /^(input|textarea|select)$/i.test(prev.tagName)) prev.blur();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') closeRef.current();
       if (e.key === 'Tab' && ref.current) {
         const f = ref.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
         if (!f.length) return;
@@ -307,7 +310,7 @@ export function Sheet({
       // give focus back to buttons only, never to a text field (that would pop the keyboard up again)
       if (prev && !/^(input|textarea|select)$/i.test(prev.tagName)) prev.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return (
     <AnimatePresence>

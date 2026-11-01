@@ -84,7 +84,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   mode: 'offline',
   theme_mode: 'system',
-  accent_hex: '#006A6A',
+  accent_hex: 'system',
   currency: 'PKR',
   locale: 'en-PK',
   date_format: 'EEE, d MMM',

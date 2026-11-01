@@ -183,6 +183,11 @@ const MIGRATIONS: string[] = [
   END;
 --#
   `,
+  // 3: colours follow the phone by default
+  `
+  UPDATE settings SET accent_hex = 'system';
+--#
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

@@ -2,7 +2,7 @@ import os, re, shutil, sys
 A='android'; O='android-overlay'
 pkg=f'{A}/app/src/main/java/com/dailyexpenses/app'
 os.makedirs(pkg,exist_ok=True)
-for f in ('BiometricVaultPlugin.java','MainActivity.java'): shutil.copy(f'{O}/{f}',f'{pkg}/{f}')
+for f in ('BiometricVaultPlugin.java','SystemColorsPlugin.java','MainActivity.java'): shutil.copy(f'{O}/{f}',f'{pkg}/{f}')
 shutil.copy(f'{O}/AndroidManifest.xml',f'{A}/app/src/main/AndroidManifest.xml')
 xml=f'{A}/app/src/main/res/xml'; os.makedirs(xml,exist_ok=True)
 for f in ('data_extraction_rules.xml','network_security_config.xml'): shutil.copy(f'{O}/{f}',f'{xml}/{f}')

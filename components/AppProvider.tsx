@@ -4,6 +4,8 @@ import type { Option, OptionKind, Settings, Template } from '@/lib/types';
 import { localDb } from '@/lib/local/client';
 import { formatMoney, relativeDayLabel, todayInTz } from '@/lib/format';
 import { themeCss } from '@/lib/theme';
+import { SYSTEM_ACCENT, refreshSystemSeed, resolveAccent } from '@/lib/local/systemcolor';
+import { onAppActive } from '@/lib/local/platform';
 import { SnackbarProvider } from '@/components/ui';
 
 interface Ctx {
@@ -56,7 +58,7 @@ function applyTheme(mode: Settings['theme_mode'], animate = false) {
 /** Re-themes instantly: builds the palette's CSS variables on the phone and swaps them into the page. */
 export async function applyPalette(palette: string): Promise<boolean> {
   try {
-    const css = themeCss(palette);
+    const css = themeCss(await resolveAccent(palette));
     let el = document.getElementById('user-theme') as HTMLStyleElement | null;
     if (!el) {
       el = document.createElement('style');
@@ -96,6 +98,14 @@ export function AppProvider({
     mq.addEventListener('change', f);
     return () => mq.removeEventListener('change', f);
   }, [settings.theme_mode]);
+
+  // "use system colours": pick up the phone's colours again when the app returns to the front
+  useEffect(() => {
+    if (settings.accent_hex !== SYSTEM_ACCENT) return;
+    return onAppActive((active) => {
+      if (active) void refreshSystemSeed().then(() => applyPalette(SYSTEM_ACCENT));
+    });
+  }, [settings.accent_hex]);
 
   const refreshOptions = useCallback(async () => {
     const { data } = await localDb().from('options').select('*').order('sort_order').order('created_at');

@@ -5,6 +5,12 @@ import { Network } from '@capacitor/network';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
+let lockHoldUntil = 0;
+/** Call before opening something outside the app (file picker, share sheet) so coming back does not auto-lock. */
+export const holdAutoLock = (ms = 600_000) => { lockHoldUntil = Date.now() + ms; };
+/** True once if a hold is active; used by the auto-lock when the app comes back to the front. */
+export const consumeAutoLockHold = () => { const held = Date.now() < lockHoldUntil; lockHoldUntil = 0; return held; };
+
 export const isNative = () => Capacitor.isNativePlatform();
 
 export const store = {
@@ -34,7 +40,8 @@ export async function saveAndShare(opts: { filename: string; data: string | Uint
       ? { path: `exports/${safe}`, data: opts.data, directory: Directory.Cache, encoding: Encoding.UTF8, recursive: true }
       : { path: `exports/${safe}`, data: b64(opts.data), directory: Directory.Cache, recursive: true },
   );
-  await Share.share({ title: safe, url: written.uri, dialogTitle: opts.dialogTitle });
+  holdAutoLock();
+  try { await Share.share({ title: safe, url: written.uri, dialogTitle: opts.dialogTitle }); } finally { holdAutoLock(3000); }
 }
 
 /** Removes files we left in the cache for sharing. */
@@ -50,10 +57,11 @@ export function pickFile(accept: string): Promise<File | null> {
     input.accept = accept;
     input.style.display = 'none';
     let done = false;
-    const finish = (f: File | null) => { if (done) return; done = true; input.remove(); resolve(f); };
+    const finish = (f: File | null) => { if (done) return; done = true; holdAutoLock(3000); input.remove(); resolve(f); };
     input.addEventListener('change', () => finish(input.files?.[0] ?? null));
     input.addEventListener('cancel', () => finish(null));
     document.body.appendChild(input);
+    holdAutoLock();
     input.click();
   });
 }

@@ -155,7 +155,7 @@ export function validateData(raw: unknown): BackupData {
   const s = r.settings;
   if (!isObj(s)) bad('settings');
   const hex = str(s.accent_hex, 'accent', 30);
-  if (!/^#[0-9A-Fa-f]{6}(:[a-z]{3,12})?$/.test(hex)) bad('accent');
+  if (hex !== 'system' && !/^#[0-9A-Fa-f]{6}(:[a-z]{3,12})?$/.test(hex)) bad('accent');
   const remember = str(s.remember_last, 'remember_last', 500);
   try { if (!isObj(JSON.parse(remember))) bad('remember_last'); } catch { bad('remember_last'); }
   const sheet = nstr(s.sheet, 'sheet', 2000);

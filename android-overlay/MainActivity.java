@@ -19,6 +19,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(BiometricVaultPlugin.class);
+        registerPlugin(SystemColorsPlugin.class);
         super.onCreate(savedInstanceState);
 
         boolean debuggable = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;

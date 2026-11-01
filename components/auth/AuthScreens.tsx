@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, Field, Icon, Segmented } from '@/components/ui';
 import { useSession, type Mode } from '@/components/auth/SessionProvider';
 import { openBackup, type BackupHeader } from '@/core/backup';
@@ -78,11 +78,19 @@ function Login({ go, notice }: { go: (v: View) => void; notice: string }) {
     const err = await s.signIn(username, password, mode);
     if (err) { setError(err); setBusy(false); setPassword(''); }
   };
-  const viaBio = async () => {
+  const viaBio = async (auto = false) => {
     setBusy(true); setError('');
     const err = await s.signInBiometric(mode);
-    if (err !== null) { setError(err); setBusy(false); }
+    if (err !== null) { setError(auto && err === 'Cancelled.' ? '' : err); setBusy(false); }
   };
+  // when fingerprint / face sign-in is on, ask for it straight away
+  const autoTried = useRef(false);
+  useEffect(() => {
+    if (!bio || autoTried.current || notice) return;
+    autoTried.current = true;
+    void viaBio(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bio]);
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
@@ -91,7 +99,7 @@ function Login({ go, notice }: { go: (v: View) => void; notice: string }) {
       <Field label="Username" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required data-testid="login-username" />
       <Field label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required error={error || undefined} data-testid="login-password" />
       <Button type="submit" className="h-14" disabled={busy || !username || !password} data-testid="login-submit">{busy ? 'Signing in…' : 'Sign in'}</Button>
-      {bio && <Button type="button" variant="outlined" className="h-14" icon="fingerprint" onClick={viaBio} disabled={busy} data-testid="login-biometric">Use fingerprint or face</Button>}
+      {bio && <Button type="button" variant="outlined" className="h-14" icon="fingerprint" onClick={() => viaBio()} disabled={busy} data-testid="login-biometric">Use fingerprint or face</Button>}
       <LinkButton onClick={() => go('forgot')}>Forgot password?</LinkButton>
       <div className="flex flex-wrap justify-center gap-x-2 border-t border-outline-variant/40 pt-2">
         <LinkButton onClick={() => go('create')}>New account</LinkButton>

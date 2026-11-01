@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Icon, Spinner, cx, useIsDark, useSnackbar } from '@/components/ui';
+import { Button, Icon, Spinner, Switch, cx, useIsDark, useSnackbar } from '@/components/ui';
+import { FALLBACK_ACCENT, SYSTEM_ACCENT } from '@/lib/local/systemcolor';
 import { useApp } from '@/components/AppProvider';
 import { normalizePalette, parsePalette, type PalettePreview } from '@/lib/palette';
 import { SUGGESTED_SEEDS, VARIANTS, generatePalettes, previewOf } from '@/lib/theme';
@@ -76,7 +77,8 @@ export function PalettePicker() {
   const { settings, setSettings } = useApp();
   const snack = useSnackbar();
   const dark = useIsDark();
-  const current = normalizePalette(settings.accent_hex);
+  const isSystem = settings.accent_hex === SYSTEM_ACCENT;
+  const current = normalizePalette(isSystem ? FALLBACK_ACCENT : settings.accent_hex);
   const cur = parsePalette(current);
 
   const [suggested, setSuggested] = useState<PalettePreview[] | null>(null);
@@ -111,8 +113,21 @@ export function PalettePicker() {
   const main = generated ?? suggested;
   const validHex = /^#[0-9a-fA-F]{6}$/.test(hex);
 
+  const toggleSystem = async (on: boolean) => {
+    const err = await setSettings({ accent_hex: on ? SYSTEM_ACCENT : current });
+    if (err) snack({ message: err });
+  };
+
   return (
     <div>
+      <div className="mb-4 flex items-center justify-between gap-4 rounded-2xl bg-surface-container-high px-4 py-3">
+        <div className="min-w-0">
+          <div className="t-title-md">Use system colours</div>
+          <div className="t-body-md text-on-surface-variant">Match your phone's colours automatically (Android 12 and newer). Turn off to pick your own.</div>
+        </div>
+        <Switch label="Use system colours" checked={isSystem} onChange={toggleSystem} />
+      </div>
+      <div className={isSystem ? 'pointer-events-none select-none opacity-40' : ''} aria-hidden={isSystem} inert={isSystem}>
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <div className="t-title-md">Colour palette</div>
@@ -163,6 +178,7 @@ export function PalettePicker() {
         <Button variant="filled" disabled={!validHex || hex.toUpperCase() === cur.seed} onClick={() => choose(cur.variant === 'tonal' ? hex.toUpperCase() : `${hex.toUpperCase()}:${cur.variant}`)}>
           Apply
         </Button>
+      </div>
       </div>
     </div>
   );

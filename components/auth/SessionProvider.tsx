@@ -5,7 +5,7 @@ import { seedStarterOptions } from '@/core/seeding';
 import { openBackup, restoreData, type BackupData } from '@/core/backup';
 import { boot, closeSession, eraseAccountData, getDb, openAccountSession } from '@/lib/local/runtime';
 import { startSyncTriggers } from '@/lib/local/sync';
-import { onAppActive, store } from '@/lib/local/platform';
+import { consumeAutoLockHold, onAppActive, store } from '@/lib/local/platform';
 import { biometricRemove, biometricUnlock, BiometricError } from '@/lib/local/biometric';
 import { applyMode } from '@/lib/local/account';
 
@@ -103,7 +103,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     let hiddenAt: number | null = null;
     return onAppActive((active) => {
       if (!active) { hiddenAt = Date.now(); return; }
-      if (hiddenAt !== null && autoLock >= 0 && Date.now() - hiddenAt >= autoLock * 1000) void signOut();
+      const held = consumeAutoLockHold();
+      if (!held && hiddenAt !== null && autoLock >= 0 && Date.now() - hiddenAt >= autoLock * 1000) void signOut();
       hiddenAt = null;
     });
   }, [phase, autoLock, signOut]);
