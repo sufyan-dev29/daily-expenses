@@ -206,8 +206,9 @@ export class LocalQuery implements PromiseLike<LocalResult> {
     });
 
     if (!this.returning) return { data: null, error: null };
-    if (ids && ids.length && this.op !== 'delete') {
-      const sel = await db.all<Record<string, unknown>>(`SELECT ${this.selectList()} FROM ${T} WHERE ${spec.single ? 'id = 1' : `id IN (${ids.map(() => '?').join(',')})`}`, spec.single ? [] : ids);
+    const got = ids as string[] | null;
+    if (got && got.length && this.op !== 'delete') {
+      const sel = await db.all<Record<string, unknown>>(`SELECT ${this.selectList()} FROM ${T} WHERE ${spec.single ? 'id = 1' : `id IN (${got.map(() => '?').join(',')})`}`, spec.single ? [] : got);
       return this.finish(sel.map((r) => this.shape(r)), null);
     }
     void affected;
