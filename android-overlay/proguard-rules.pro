@@ -4,3 +4,7 @@
 -keep class net.zetetic.** { *; }
 -dontwarn net.zetetic.**
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+-dontwarn com.google.crypto.tink.**
+-keep class com.google.crypto.tink.** { *; }
