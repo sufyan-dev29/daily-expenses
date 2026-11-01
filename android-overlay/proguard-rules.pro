@@ -1,0 +1,6 @@
+-keep class com.getcapacitor.** { *; }
+-keep class com.dailyexpenses.app.** { *; }
+-keep class com.getcapacitor.community.database.sqlite.** { *; }
+-keep class net.zetetic.** { *; }
+-dontwarn net.zetetic.**
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
