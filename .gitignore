@@ -1,0 +1,9 @@
+node_modules/
+.next/
+out/
+*.keystore
+*.jks
+.env*
+android/app/build/
+android/.gradle/
+local.properties

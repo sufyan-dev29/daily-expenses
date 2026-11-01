@@ -1,0 +1,139 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* San Francisco on Apple devices (system UI font), Inter (its closest open sibling) everywhere else. */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter Variable', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --nav-h: 64px;
+}
+
+/* ------------------------------------------------------------------ no pull-to-refresh, no rubber-band
+ * Chrome's pull-to-refresh belongs to the ROOT scroller, so the rule must be on <html> as well as <body>.
+ * "none" also stops scroll chaining out of inner scrollers and the browser back/forward swipe. */
+html,
+body {
+  overscroll-behavior: none;
+}
+html {
+  font-family: var(--font);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+body {
+  min-height: 100dvh;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: -0.011em;
+  -webkit-tap-highlight-color: transparent;
+}
+/* inner scrollers keep their own scroll but never hand it to the page */
+.scroller { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+/* tabular numerals for every amount */
+.num, .tabular { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum', 'cv11'; }
+
+/* ------------------------------------------------------------------ type scale (M3, tuned for Inter / SF) */
+.t-display-lg { font-size: 56px; line-height: 64px; font-weight: 600; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
+.t-display { font-size: 44px; line-height: 52px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.t-headline { font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: -0.022em; }
+.t-title-lg { font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.018em; }
+.t-title-md { font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: -0.012em; }
+.t-body-lg { font-size: 16px; line-height: 24px; }
+.t-body-md { font-size: 14px; line-height: 20px; letter-spacing: -0.006em; }
+.t-label-lg { font-size: 14px; line-height: 20px; font-weight: 600; letter-spacing: -0.004em; }
+.t-label-md { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.01em; }
+
+.icon {
+  font-family: 'Material Symbols Rounded';
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  user-select: none;
+  transition: font-variation-settings 220ms var(--ease);
+}
+.icon.fill { font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24; }
+
+:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ pressable surfaces */
+.state { position: relative; transition: transform 160ms var(--ease), background-color 200ms var(--ease), color 200ms var(--ease); }
+.state::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 150ms var(--ease);
+  pointer-events: none;
+}
+@media (hover: hover) { .state:hover::after { opacity: 0.08; } }
+.state:active::after { opacity: 0.12; }
+.press:active { transform: scale(0.97); }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* thin, quiet scrollbars on desktop */
+@media (hover: hover) {
+  .scroller { scrollbar-width: thin; scrollbar-color: var(--md-sys-color-outline-variant) transparent; }
+}
+
+/* ------------------------------------------------------------------ light, subtle motion */
+@keyframes skeleton { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.skeleton { background: var(--md-sys-color-surface-container-high); animation: skeleton 1.4s ease-in-out infinite; }
+
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.page-in { animation: page-in 260ms var(--ease) backwards; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 260ms var(--ease) backwards; }
+
+@keyframes pop { 0% { transform: scale(0.94); } 60% { transform: scale(1.03); } 100% { transform: scale(1); } }
+.pop { animation: pop 260ms var(--ease-spring) both; }
+
+@keyframes tick { 0% { transform: translateY(4px); opacity: 0.4; } 100% { transform: none; opacity: 1; } }
+.tick { animation: tick 180ms var(--ease) both; }
+
+@keyframes check-draw { to { stroke-dashoffset: 0; } }
+.check-draw { stroke-dasharray: 26; stroke-dashoffset: 26; animation: check-draw 340ms 60ms var(--ease) forwards; }
+
+@keyframes ring-out { from { transform: scale(0.8); opacity: 0.45; } to { transform: scale(1.9); opacity: 0; } }
+.ring-out { animation: ring-out 620ms var(--ease) forwards; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 700ms linear infinite; }
+
+/* colours glide when the palette or light/dark mode changes (class is added for ~400ms only) */
+html.theme-switching *, html.theme-switching *::before, html.theme-switching *::after {
+  transition: background-color 320ms var(--ease), color 320ms var(--ease), border-color 320ms var(--ease), fill 320ms var(--ease), stroke 320ms var(--ease) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
